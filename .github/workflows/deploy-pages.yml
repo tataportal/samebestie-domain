@@ -1,0 +1,70 @@
+name: Deploy custom domain
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.revision.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: tataportal/samebestie
+          ref: main
+          persist-credentials: false
+      - name: Check source revision
+        id: revision
+        shell: bash
+        run: |
+          revision=$(git rev-parse HEAD)
+          deployed=$(curl --fail --silent --max-time 15 https://samebestie.app/source-revision.txt || true)
+          if [[ "${{ github.event_name }}" == "schedule" && "$revision" == "$deployed" ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.revision.outputs.publish == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-scene/package-lock.json
+      - name: Build and verify
+        if: steps.revision.outputs.publish == 'true'
+        working-directory: web-scene
+        run: |
+          npm ci
+          npm test
+          npm run build
+          touch dist/.nojekyll
+          cp dist/index.html dist/404.html
+          git rev-parse HEAD > dist/source-revision.txt
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.revision.outputs.publish == 'true'
+        with:
+          path: web-scene/dist
+  deploy:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
