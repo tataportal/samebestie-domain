@@ -6,4 +6,4 @@ The app source lives in [tataportal/samebestie](https://github.com/tataportal/sa
 
 Keep the custom domain configured only on this repository so the original GitHub Pages address remains usable without a redirect.
 
-The custom publication uses `www.samebestie.app` as its canonical address, with the apex domain redirected by GitHub Pages. Both names are included in the certificate request. The scheduled workflow enables HTTPS enforcement automatically after GitHub approves the certificate, even when the app source has not changed.
+The custom publication uses `www.samebestie.app` as its canonical address, with the apex domain redirected by GitHub Pages. Both names are included in the certificate request. The scheduled workflow checks certificate status and verifies HTTPS after GitHub approves the certificate, even when the app source has not changed. HTTPS enforcement is a repository administrator setting; enable it after certificate approval.

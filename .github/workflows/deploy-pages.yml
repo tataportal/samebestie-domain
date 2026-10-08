@@ -73,7 +73,7 @@ jobs:
     if: always() && needs.build.result == 'success' && (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - name: Enable HTTPS once the certificate is approved
+      - name: Verify HTTPS once the certificate is approved
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -81,6 +81,8 @@ jobs:
           state=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.https_certificate.state // "pending"')
           enforced=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.https_enforced')
           echo "Certificate status: $state; HTTPS enforced: $enforced"
-          if [[ "$state" == "approved" && "$enforced" != "true" ]]; then
-            gh api --method PUT "repos/$GITHUB_REPOSITORY/pages" -F https_enforced=true
+          if [[ "$state" == "approved" ]]; then
+            curl --location --fail --silent --show-error --max-time 30 https://samebestie.app/source-revision.txt
+          else
+            echo "Certificate is still pending at GitHub; DNS and deployment do not prove HTTPS readiness." >> "$GITHUB_STEP_SUMMARY"
           fi
